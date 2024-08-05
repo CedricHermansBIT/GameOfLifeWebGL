@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8" />
+    <title>Game Of Life</title>
+  </head>
+    <body style="margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; padding: 0;">
+      <!-- canvas renders crisp images, no interpolating, anti-aliassing -->  
+      <canvas
+            id="canvas"
+          style="height: 100vh; width: 100vw; image-rendering: pixelated;"
+        >
+        </canvas>
+    </body>
+    <script type="module">
+      
+      import init from './out/gol_webgl.js';
+      init().then(() => {}).catch(err => console.error(err));
+
+    </script>
+</html>

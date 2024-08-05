@@ -1,0 +1,36 @@
+[package]
+name = "gol-webgl"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wasm-bindgen = "0.2.92"
+js-sys = "0.3.69"
+console_error_panic_hook = "0.1.6"
+
+
+[dependencies.web-sys]
+version = "0.3.69"
+features = [
+    'console',
+    'Document',
+    'DomRect',
+    'Element',
+    'HtmlCanvasElement',
+    'MouseEvent',
+    'WebGlBuffer',
+    'WebGlFramebuffer',
+    'WebGlTexture',
+    'WebGlVertexArrayObject',
+    'WebGl2RenderingContext',
+    'WebGlUniformLocation',
+    'WebGlProgram',
+    'WebGlShader',
+    'Window',
+]
+
+[profile.release]
+debug = true
