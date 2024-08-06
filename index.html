@@ -61,6 +61,15 @@
             const shaderSource = await fetchShaderSource(shaderFile);
             reset_simulation(shaderSource, parseInt(scale));
         });
+
+        // on click, reset
+        document.getElementById('canvas').addEventListener('click', async (event) => {
+            const scale = document.getElementById('scale').value;
+            const shaderFile = document.querySelector('input[name="game"]:checked').value;
+            const shaderSource = await fetchShaderSource(shaderFile);
+            reset_simulation(shaderSource, parseInt(scale));
+        });
+
       }).catch(err => console.error(err));
 
     </script>
