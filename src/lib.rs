@@ -4,6 +4,129 @@ use wasm_bindgen::prelude::*;
 use web_sys::{WebGl2RenderingContext, WebGlFramebuffer, WebGlProgram, WebGlShader, WebGlTexture, console, HtmlCanvasElement, MouseEvent};
 use console_error_panic_hook;
 use std::panic;
+struct Simulation {
+    context: WebGl2RenderingContext,
+    program: WebGlProgram,
+    canvas: HtmlCanvasElement,
+    current_framebuffer: Rc<RefCell<WebGlFramebuffer>>,
+    next_framebuffer: Rc<RefCell<WebGlFramebuffer>>,
+    current_texture: Rc<RefCell<WebGlTexture>>,
+    next_texture: Rc<RefCell<WebGlTexture>>,
+    mouse_position: Rc<RefCell<(f64, f64)>>,
+    kernel: [i32; 9],
+}
+
+impl Simulation {
+    fn new(canvas: HtmlCanvasElement) -> Result<Self, JsValue> {
+        let context = canvas
+            .get_context("webgl2")?
+            .unwrap()
+            .dyn_into::<WebGl2RenderingContext>()?;
+
+        let vert_shader = compile_shader(
+            &context,
+            WebGl2RenderingContext::VERTEX_SHADER,
+            include_str!("vertex_shader.glsl"),
+        )?;
+
+        let frag_shader = compile_shader(
+            &context,
+            WebGl2RenderingContext::FRAGMENT_SHADER,
+            include_str!("fragment_shader.glsl"),
+        )?;
+
+        let program = link_program(&context, &vert_shader, &frag_shader)?;
+        context.use_program(Some(&program));
+
+        let vertices: [f32; 8] = [-1.0, -1.0, 1.0, -1.0, -1.0, 1.0, 1.0, 1.0];
+        setup_vertex_buffer(&context, &program, &vertices)?;
+
+        let resolution_location = context
+            .get_uniform_location(&program, "u_resolution")
+            .unwrap();
+        context.uniform2f(
+            Some(&resolution_location),
+            canvas.width() as f32,
+            canvas.height() as f32,
+        );
+
+        let (framebuffer1, texture1) = create_framebuffer(&context, canvas.width() as i32, canvas.height() as i32)?;
+        let (framebuffer2, texture2) = create_framebuffer(&context, canvas.width() as i32, canvas.height() as i32)?;
+
+        initialize_state(&context, canvas.width() as i32, canvas.height() as i32, &texture1)?;
+
+        let kernel: [i32; 9] = [
+            1, 1, 1,
+            1, 0, 1,
+            1, 1, 1,
+        ];
+
+        Ok(Self {
+            context,
+            program,
+            canvas,
+            current_framebuffer: Rc::new(RefCell::new(framebuffer1)),
+            next_framebuffer: Rc::new(RefCell::new(framebuffer2)),
+            current_texture: Rc::new(RefCell::new(texture1)),
+            next_texture: Rc::new(RefCell::new(texture2)),
+            mouse_position: Rc::new(RefCell::new((0.0, 0.0))),
+            kernel,
+        })
+    }
+
+    fn setup_mouse_listener(&self) -> Result<(), JsValue> {
+        let mouse_position = self.mouse_position.clone();
+        let canvas_clone = self.canvas.clone();
+        let closure = Closure::wrap(Box::new(move |event: MouseEvent| {
+            let rect = canvas_clone.get_bounding_client_rect();
+            let x = event.client_x() as f64 - rect.left();
+            let y = event.client_y() as f64 - rect.top();
+            *mouse_position.borrow_mut() = (x, y);
+        }) as Box<dyn FnMut(_)>);
+        self.canvas.add_event_listener_with_callback("mousemove", closure.as_ref().unchecked_ref())?;
+        closure.forget();
+        Ok(())
+    }
+
+    fn update(&self) {
+        let scale = 5;
+        // Calculate the next state
+        self.context.bind_framebuffer(WebGl2RenderingContext::FRAMEBUFFER, Some(&self.next_framebuffer.borrow()));
+        self.context.viewport(0, 0, self.canvas.width() as i32, self.canvas.height() as i32);
+        
+        self.context.use_program(Some(&self.program));
+        
+        self.context.active_texture(WebGl2RenderingContext::TEXTURE0);
+        self.context.bind_texture(WebGl2RenderingContext::TEXTURE_2D, Some(&self.current_texture.borrow()));
+        
+        let u_current_state_location = self.context.get_uniform_location(&self.program, "u_current_state");
+        self.context.uniform1i(u_current_state_location.as_ref(), 0);
+
+        let (mouse_x, mouse_y) = *self.mouse_position.borrow();
+        let u_mouse_location = self.context.get_uniform_location(&self.program, "u_mouse");
+        self.context.uniform2f(u_mouse_location.as_ref(), (mouse_x / scale as f64) as f32, (self.canvas.height() as f64 - (mouse_y/scale as f64)) as f32);
+
+        let u_kernel_location = self.context.get_uniform_location(&self.program, "u_kernel");
+        self.context.uniform1iv_with_i32_array(u_kernel_location.as_ref(), &self.kernel);
+
+        self.context.draw_arrays(WebGl2RenderingContext::TRIANGLE_STRIP, 0, 4);
+
+        // Render the current state to the canvas
+        self.context.bind_framebuffer(WebGl2RenderingContext::FRAMEBUFFER, None);
+        self.context.viewport(0, 0, self.canvas.width() as i32, self.canvas.height() as i32);
+        
+        self.context.active_texture(WebGl2RenderingContext::TEXTURE0);
+        self.context.bind_texture(WebGl2RenderingContext::TEXTURE_2D, Some(&self.current_texture.borrow()));
+        
+        self.context.draw_arrays(WebGl2RenderingContext::TRIANGLE_STRIP, 0, 4);
+
+        // Swap framebuffers and textures
+        std::mem::swap(&mut *self.current_framebuffer.borrow_mut(), &mut *self.next_framebuffer.borrow_mut());
+        std::mem::swap(&mut *self.current_texture.borrow_mut(), &mut *self.next_texture.borrow_mut());
+
+        check_gl_error(&self.context, "After render loop");
+    }
+}
 
 #[wasm_bindgen(start)]
 fn start() -> Result<(), JsValue> {
@@ -15,116 +138,22 @@ fn start() -> Result<(), JsValue> {
     let canvas: HtmlCanvasElement = canvas.dyn_into::<web_sys::HtmlCanvasElement>()?;
 
     // set the canvas size to the window size
-    canvas.set_width(document.body().unwrap().client_width() as u32);
-    canvas.set_height(document.body().unwrap().client_height() as u32);
+    let scale = 5;
+    canvas.set_width((document.body().unwrap().client_width() / scale) as u32);
+    canvas.set_height((document.body().unwrap().client_height() /scale)as u32);
 
-    let context = canvas
-        .get_context("webgl2")?
-        .unwrap()
-        .dyn_into::<WebGl2RenderingContext>()?;
-
-    let vert_shader = compile_shader(
-        &context,
-        WebGl2RenderingContext::VERTEX_SHADER,
-        include_str!("vertex_shader.glsl"),
-    )?;
-
-        // Initialize mouse position
-        let mouse_position = Rc::new(RefCell::new((0.0, 0.0)));
-
-        // Add mouse move event listener
-        {
-            let mouse_position = mouse_position.clone();
-            let canvas_clone = canvas.clone();
-            let closure = Closure::wrap(Box::new(move |event: MouseEvent| {
-                let rect = canvas_clone.get_bounding_client_rect();
-                let x = event.client_x() as f64 - rect.left();
-                let y = event.client_y() as f64 - rect.top();
-                *mouse_position.borrow_mut() = (x, y);
-            }) as Box<dyn FnMut(_)>);
-            canvas.add_event_listener_with_callback("mousemove", closure.as_ref().unchecked_ref())?;
-            closure.forget();
-        }
-
-    let frag_shader = compile_shader(
-        &context,
-        WebGl2RenderingContext::FRAGMENT_SHADER,
-        include_str!("fragment_shader.glsl"),
-    )?;
-
-    let program = link_program(&context, &vert_shader, &frag_shader)?;
-    context.use_program(Some(&program));
-
-    let vertices: [f32; 8] = [-1.0, -1.0, 1.0, -1.0, -1.0, 1.0, 1.0, 1.0];
-    setup_vertex_buffer(&context, &program, &vertices)?;
-
-    let resolution_location = context
-        .get_uniform_location(&program, "u_resolution")
-        .unwrap();
-    context.uniform2f(
-        Some(&resolution_location),
-        canvas.width() as f32,
-        canvas.height() as f32,
-    );
-
-    let (framebuffer1, texture1) = create_framebuffer(&context, canvas.width() as i32, canvas.height() as i32)?;
-    let (framebuffer2, texture2) = create_framebuffer(&context, canvas.width() as i32, canvas.height() as i32)?;
-
-    initialize_state(&context, canvas.width() as i32, canvas.height() as i32, &texture1)?;
-
-    let current_framebuffer = Rc::new(RefCell::new(framebuffer1));
-    let next_framebuffer = Rc::new(RefCell::new(framebuffer2));
-    let current_texture = Rc::new(RefCell::new(texture1));
-    let next_texture = Rc::new(RefCell::new(texture2));
+    let simulation = Rc::new(Simulation::new(canvas)?);
+    simulation.setup_mouse_listener()?;
 
     let f = Rc::new(RefCell::new(None));
     let g = f.clone();
 
-    let kernel: [i32; 9] = [
-        1 , 1 , 1,
-        1 , 0 , 1,
-        1 , 1 , 1,
-    ];
-
-    *g.borrow_mut() = Some(Closure::wrap(Box::new(move || {
-        // Calculate the next state
-        context.bind_framebuffer(WebGl2RenderingContext::FRAMEBUFFER, Some(&next_framebuffer.borrow()));
-        context.viewport(0, 0, canvas.width() as i32, canvas.height() as i32);
-        
-        context.use_program(Some(&program));
-        
-        context.active_texture(WebGl2RenderingContext::TEXTURE0);
-        context.bind_texture(WebGl2RenderingContext::TEXTURE_2D, Some(&current_texture.borrow()));
-        
-        let u_current_state_location = context.get_uniform_location(&program, "u_current_state");
-        context.uniform1i(u_current_state_location.as_ref(), 0);
-
-        let (mouse_x, mouse_y) = *mouse_position.borrow();
-        let u_mouse_location = context.get_uniform_location(&program, "u_mouse");
-        context.uniform2f(u_mouse_location.as_ref(), mouse_x as f32, (canvas.height() as f64 - mouse_y) as f32);
-
-        let u_kernel_location = context.get_uniform_location(&program, "u_kernel");
-        context.uniform1iv_with_i32_array(u_kernel_location.as_ref(), &kernel);
-
-        
-        context.draw_arrays(WebGl2RenderingContext::TRIANGLE_STRIP, 0, 4);
-
-        // Render the current state to the canvas
-        context.bind_framebuffer(WebGl2RenderingContext::FRAMEBUFFER, None);
-        context.viewport(0, 0, canvas.width() as i32, canvas.height() as i32);
-        
-        context.active_texture(WebGl2RenderingContext::TEXTURE0);
-        context.bind_texture(WebGl2RenderingContext::TEXTURE_2D, Some(&current_texture.borrow()));
-        
-        context.draw_arrays(WebGl2RenderingContext::TRIANGLE_STRIP, 0, 4);
-
-        // Swap framebuffers and textures
-        std::mem::swap(&mut *current_framebuffer.borrow_mut(), &mut *next_framebuffer.borrow_mut());
-        std::mem::swap(&mut *current_texture.borrow_mut(), &mut *next_texture.borrow_mut());
-
-        check_gl_error(&context, "After render loop");
-
-        request_animation_frame(f.borrow().as_ref().unwrap());
+    *g.borrow_mut() = Some(Closure::wrap(Box::new({
+        let simulation = simulation.clone();
+        move || {
+            simulation.update();
+            request_animation_frame(f.borrow().as_ref().unwrap());
+        }
     }) as Box<dyn FnMut()>));
     
     request_animation_frame(g.borrow().as_ref().unwrap());
