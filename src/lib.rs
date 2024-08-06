@@ -80,6 +80,12 @@ fn start() -> Result<(), JsValue> {
     let f = Rc::new(RefCell::new(None));
     let g = f.clone();
 
+    let kernel: [i32; 9] = [
+        1 , 1 , 1,
+        1 , 0 , 1,
+        1 , 1 , 1,
+    ];
+
     *g.borrow_mut() = Some(Closure::wrap(Box::new(move || {
         // Calculate the next state
         context.bind_framebuffer(WebGl2RenderingContext::FRAMEBUFFER, Some(&next_framebuffer.borrow()));
@@ -96,6 +102,9 @@ fn start() -> Result<(), JsValue> {
         let (mouse_x, mouse_y) = *mouse_position.borrow();
         let u_mouse_location = context.get_uniform_location(&program, "u_mouse");
         context.uniform2f(u_mouse_location.as_ref(), mouse_x as f32, (canvas.height() as f64 - mouse_y) as f32);
+
+        let u_kernel_location = context.get_uniform_location(&program, "u_kernel");
+        context.uniform1iv_with_i32_array(u_kernel_location.as_ref(), &kernel);
 
         
         context.draw_arrays(WebGl2RenderingContext::TRIANGLE_STRIP, 0, 4);
