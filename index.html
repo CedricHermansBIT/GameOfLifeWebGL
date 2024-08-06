@@ -10,12 +10,58 @@
             id="canvas"
           style="height: 100vh; width: 100vw; image-rendering: pixelated;"
         >
-        </canvas>
+      </canvas>
+      <div style="position: absolute; top: 0; left: 0; padding: 10px; color: white;">
+          <input type="radio" id="gol" name="game" value="src/fragment_shader_gol.glsl" checked>
+          <label for="gol">Game of Life</label>
+          <input type="radio" id="ltl" name="game" value="src/fragment_shader_ltl.glsl">
+          <label for="ltl">Larger than Life</label>
+      </div>
+      <div style="position: absolute; top: 0; right: 0; padding: 10px; color: white;">
+          <label for="scale">Scale:</label>
+          <select name="scale" id="scale">
+              <option value="1">1x</option>
+              <option value="2">2x</option>
+              <option value="3">3x</option>
+              <option value="4">4x</option>
+              <option value="5">5x</option>
+              <option value="6">6x</option>
+              <option value="7">7x</option>
+              <option value="8">8x</option>
+              <option value="9">9x</option>
+              <option value="10">10x</option>
+          </select>
+      </div>
     </body>
     <script type="module">
       
-      import init from './out/gol_webgl.js';
-      init().then(() => {}).catch(err => console.error(err));
+      import init, {start, reset_simulation} from './out/gol_webgl.js';
+
+      async function fetchShaderSource(shaderFile) {
+            const response = await fetch(shaderFile);
+            return await response.text();
+        }
+
+      init().then(() => {
+        start();
+
+        document.querySelectorAll('input[name="game"]').forEach((radio) => {
+                radio.addEventListener('change', async (event) => {
+                    const shaderFile = event.target.value;
+                    const scale = document.getElementById('scale').value;
+                    const shaderSource = await fetchShaderSource(shaderFile);
+                    //console.log(shaderSource);
+                    reset_simulation(shaderSource, parseInt(scale));
+                });
+            });
+
+        document.getElementById('scale').addEventListener('change', async (event) => {
+            const scale = event.target.value;
+            const shaderFile = document.querySelector('input[name="game"]:checked').value;
+            const shaderSource = await fetchShaderSource(shaderFile);
+            reset_simulation(shaderSource, parseInt(scale));
+        });
+      }).catch(err => console.error(err));
 
     </script>
 </html>

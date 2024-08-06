@@ -4,6 +4,13 @@ use wasm_bindgen::prelude::*;
 use web_sys::{WebGl2RenderingContext, WebGlFramebuffer, WebGlProgram, WebGlShader, WebGlTexture, console, HtmlCanvasElement, MouseEvent};
 use console_error_panic_hook;
 use std::panic;
+
+
+thread_local! {
+    static SIMULATION: RefCell<Option<Rc<RefCell<Simulation>>>> = RefCell::new(None);
+}
+
+#[derive(Debug)]
 struct Simulation {
     context: WebGl2RenderingContext,
     program: WebGlProgram,
@@ -14,10 +21,11 @@ struct Simulation {
     next_texture: Rc<RefCell<WebGlTexture>>,
     mouse_position: Rc<RefCell<(f64, f64)>>,
     kernel: [i32; 9],
+    scale: i32,
 }
 
 impl Simulation {
-    fn new(canvas: HtmlCanvasElement) -> Result<Self, JsValue> {
+    fn new(canvas: HtmlCanvasElement, fragment_shader_file: &str, scale: i32) -> Result<Self, JsValue> {
         let context = canvas
             .get_context("webgl2")?
             .unwrap()
@@ -32,7 +40,7 @@ impl Simulation {
         let frag_shader = compile_shader(
             &context,
             WebGl2RenderingContext::FRAGMENT_SHADER,
-            include_str!("fragment_shader.glsl"),
+            fragment_shader_file,
         )?;
 
         let program = link_program(&context, &vert_shader, &frag_shader)?;
@@ -71,6 +79,7 @@ impl Simulation {
             next_texture: Rc::new(RefCell::new(texture2)),
             mouse_position: Rc::new(RefCell::new((0.0, 0.0))),
             kernel,
+            scale,
         })
     }
 
@@ -89,7 +98,7 @@ impl Simulation {
     }
 
     fn update(&self) {
-        let scale = 5;
+        let scale = self.scale;
         // Calculate the next state
         self.context.bind_framebuffer(WebGl2RenderingContext::FRAMEBUFFER, Some(&self.next_framebuffer.borrow()));
         self.context.viewport(0, 0, self.canvas.width() as i32, self.canvas.height() as i32);
@@ -138,25 +147,31 @@ fn start() -> Result<(), JsValue> {
     let canvas: HtmlCanvasElement = canvas.dyn_into::<web_sys::HtmlCanvasElement>()?;
 
     // set the canvas size to the window size
-    let scale = 5;
+    let scale = 1;
     canvas.set_width((document.body().unwrap().client_width() / scale) as u32);
     canvas.set_height((document.body().unwrap().client_height() /scale)as u32);
 
-    let simulation = Rc::new(Simulation::new(canvas)?);
+    let simulation = Simulation::new(canvas, include_str!("fragment_shader_gol.glsl"), 1)?;
     simulation.setup_mouse_listener()?;
+    let simulation = Rc::new(RefCell::new(simulation));
+    SIMULATION.with(|sim| {
+        *sim.borrow_mut() = Some(simulation.clone());
+    });
 
     let f = Rc::new(RefCell::new(None));
     let g = f.clone();
 
-    *g.borrow_mut() = Some(Closure::wrap(Box::new({
-        let simulation = simulation.clone();
-        move || {
-            simulation.update();
-            request_animation_frame(f.borrow().as_ref().unwrap());
-        }
+    *g.borrow_mut() = Some(Closure::wrap(Box::new(move || {
+        SIMULATION.with(|sim| {
+            if let Some(simulation) = sim.borrow().as_ref() {
+                simulation.borrow_mut().update();
+            }
+        });
+        request_animation_frame(f.borrow().as_ref().unwrap());
     }) as Box<dyn FnMut()>));
     
     request_animation_frame(g.borrow().as_ref().unwrap());
+
 
     console::log_1(&"WebAssembly started successfully.".into());
 
@@ -366,4 +381,23 @@ fn check_gl_error(context: &WebGl2RenderingContext, location: &str) {
     if error != WebGl2RenderingContext::NO_ERROR {
         console::log_1(&format!("WebGL error at {}: 0x{:X}", location, error).into());
     }
+}
+
+#[wasm_bindgen]
+pub fn reset_simulation(shader_source: &str, scale: i32) -> Result<(), JsValue> {
+    let document = web_sys::window().unwrap().document().unwrap();
+    let canvas = document.get_element_by_id("canvas").unwrap();
+    // set canvas size based to scale
+    let canvas: HtmlCanvasElement = canvas.dyn_into::<web_sys::HtmlCanvasElement>().unwrap();
+    canvas.set_width((document.body().unwrap().client_width() / scale) as u32);
+    canvas.set_height((document.body().unwrap().client_height() /scale)as u32);
+
+    let new_simulation = Simulation::new(canvas, shader_source, scale)?;
+    new_simulation.setup_mouse_listener()?;
+
+    SIMULATION.with(|simulation| {
+        *simulation.borrow_mut() = Some(Rc::new(RefCell::new(new_simulation)));
+    });
+
+    Ok(())
 }
