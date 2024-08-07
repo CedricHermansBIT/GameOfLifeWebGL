@@ -16,6 +16,8 @@
           <label for="gol">Game of Life</label>
           <input type="radio" id="ltl" name="game" value="src/fragment_shader_ltl.glsl">
           <label for="ltl">Larger than Life</label>
+          <input type="radio" name="game" id="primordia" value="src/fragment_shader_primordia.glsl">
+          <label for="primordia">Primordia</label>
       </div>
       <div style="position: absolute; top: 0; right: 0; padding: 10px; color: white;">
           <label for="scale">Scale:</label>
@@ -31,6 +33,10 @@
               <option value="9">9x</option>
               <option value="10">10x</option>
           </select>
+          <div style="display:none;">
+          <label for="states">States:</label>
+          <input type="number" name="states" id="states" value="12" min="2" max="255">
+          </div>
       </div>
     </body>
     <script type="module">
@@ -42,32 +48,47 @@
             return await response.text();
         }
 
+      function getInputValues() {
+          const scale = document.getElementById('scale').value;
+          const states = document.getElementById('states').value;
+          const shaderFile = document.querySelector('input[name="game"]:checked').value;
+          return {scale, states, shaderFile};
+      }
+
       init().then(() => {
         start();
 
         document.querySelectorAll('input[name="game"]').forEach((radio) => {
                 radio.addEventListener('change', async (event) => {
-                    const shaderFile = event.target.value;
-                    const scale = document.getElementById('scale').value;
+                    const {scale, states, shaderFile} = getInputValues();
                     const shaderSource = await fetchShaderSource(shaderFile);
+                    if (shaderFile === 'src/fragment_shader_primordia.glsl') {
+                        document.getElementById('states').parentNode.style.display = 'block';
+                    } else {
+                        document.getElementById('states').parentNode.style.display = 'none';
+                    }
                     //console.log(shaderSource);
-                    reset_simulation(shaderSource, parseInt(scale));
+                    reset_simulation(shaderSource, parseInt(scale), parseInt(states));
                 });
             });
 
         document.getElementById('scale').addEventListener('change', async (event) => {
-            const scale = event.target.value;
-            const shaderFile = document.querySelector('input[name="game"]:checked').value;
+            const {scale, states, shaderFile} = getInputValues();
             const shaderSource = await fetchShaderSource(shaderFile);
-            reset_simulation(shaderSource, parseInt(scale));
+            reset_simulation(shaderSource, parseInt(scale), parseInt(states));
+        });
+
+        document.getElementById('states').addEventListener('change', async (event) => {
+            const {scale, states, shaderFile} = getInputValues();
+            const shaderSource = await fetchShaderSource(shaderFile);
+            reset_simulation(shaderSource, parseInt(scale), parseInt(states));
         });
 
         // on click, reset
         document.getElementById('canvas').addEventListener('click', async (event) => {
-            const scale = document.getElementById('scale').value;
-            const shaderFile = document.querySelector('input[name="game"]:checked').value;
+            const {scale, states, shaderFile} = getInputValues();
             const shaderSource = await fetchShaderSource(shaderFile);
-            reset_simulation(shaderSource, parseInt(scale));
+            reset_simulation(shaderSource, parseInt(scale), parseInt(states));
         });
 
       }).catch(err => console.error(err));

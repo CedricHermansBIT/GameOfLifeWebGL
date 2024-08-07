@@ -258,14 +258,16 @@ export function start() {
 /**
 * @param {string} shader_source
 * @param {number} scale
+* @param {number} states
 */
-export function reset_simulation(shader_source, scale) {
+export function reset_simulation(shader_source, scale, states) {
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
         const ptr0 = passStringToWasm0(shader_source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len0 = WASM_VECTOR_LEN;
         _assertNum(scale);
-        wasm.reset_simulation(retptr, ptr0, len0, scale);
+        _assertNum(states);
+        wasm.reset_simulation(retptr, ptr0, len0, scale, states);
         var r0 = getInt32Memory0()[retptr / 4 + 0];
         var r1 = getInt32Memory0()[retptr / 4 + 1];
         if (r1) {
@@ -535,6 +537,9 @@ function __wbg_get_imports() {
     imports.wbg.__wbg_texParameteri_8f70dffce11d7da1 = function() { return logError(function (arg0, arg1, arg2, arg3) {
         getObject(arg0).texParameteri(arg1 >>> 0, arg2 >>> 0, arg3);
     }, arguments) };
+    imports.wbg.__wbg_uniform1f_9b9e5339e7560722 = function() { return logError(function (arg0, arg1, arg2) {
+        getObject(arg0).uniform1f(getObject(arg1), arg2);
+    }, arguments) };
     imports.wbg.__wbg_uniform1i_bdcd75be097285e6 = function() { return logError(function (arg0, arg1, arg2) {
         getObject(arg0).uniform1i(getObject(arg1), arg2);
     }, arguments) };
@@ -674,11 +679,11 @@ function __wbg_get_imports() {
         const ret = wasm.memory;
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper108 = function() { return logError(function (arg0, arg1, arg2) {
+    imports.wbg.__wbindgen_closure_wrapper109 = function() { return logError(function (arg0, arg1, arg2) {
         const ret = makeMutClosure(arg0, arg1, 23, __wbg_adapter_22);
         return addHeapObject(ret);
     }, arguments) };
-    imports.wbg.__wbindgen_closure_wrapper110 = function() { return logError(function (arg0, arg1, arg2) {
+    imports.wbg.__wbindgen_closure_wrapper111 = function() { return logError(function (arg0, arg1, arg2) {
         const ret = makeMutClosure(arg0, arg1, 23, __wbg_adapter_25);
         return addHeapObject(ret);
     }, arguments) };
