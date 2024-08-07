@@ -5,8 +5,9 @@ uniform vec2 u_mouse;
 uniform sampler2D u_current_state;
 uniform vec2 u_resolution;
 
-uniform int u_kernel[9];
-
+const float kernel[9] = float[9](1.0/8.0, 1.0/8.0, 1.0/8.0,
+                                  1.0/8.0, 0.0, 1.0/8.0,
+                                  1.0/8.0, 1.0/8.0, 1.0/8.0);
 out vec4 outColor;
 
 float growth(int U) {
@@ -23,7 +24,7 @@ void main() {
             vec2 offset = vec2(float(i % 3 - 1), float(i / 3 - 1)) * texelSize;
             vec4 neighbor = texture(u_current_state, texCoord + offset);
             if (neighbor.r > 0.0) {
-                alive_neighbors += 1 * u_kernel[i];
+                alive_neighbors += 1 * int(kernel[i]*8.0);
             }
     }
 

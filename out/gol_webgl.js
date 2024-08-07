@@ -295,11 +295,6 @@ function getArrayU8FromWasm0(ptr, len) {
     return getUint8Memory0().subarray(ptr / 1, ptr / 1 + len);
 }
 
-function getArrayI32FromWasm0(ptr, len) {
-    ptr = ptr >>> 0;
-    return getInt32Memory0().subarray(ptr / 4, ptr / 4 + len);
-}
-
 function notDefined(what) { return () => { throw new Error(`${what} is not defined`); }; }
 
 async function __wbg_load(module, imports) {
@@ -436,9 +431,6 @@ function __wbg_get_imports() {
     }, arguments) };
     imports.wbg.__wbg_texImage2D_f807cf3bdc044190 = function() { return handleError(function (arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10) {
         getObject(arg0).texImage2D(arg1 >>> 0, arg2, arg3, arg4, arg5, arg6, arg7 >>> 0, arg8 >>> 0, arg9 === 0 ? undefined : getArrayU8FromWasm0(arg9, arg10));
-    }, arguments) };
-    imports.wbg.__wbg_uniform1iv_e372f959c335fb72 = function() { return logError(function (arg0, arg1, arg2, arg3) {
-        getObject(arg0).uniform1iv(getObject(arg1), getArrayI32FromWasm0(arg2, arg3));
     }, arguments) };
     imports.wbg.__wbg_activeTexture_d42cec3a26e47a5b = function() { return logError(function (arg0, arg1) {
         getObject(arg0).activeTexture(arg1 >>> 0);
@@ -679,11 +671,11 @@ function __wbg_get_imports() {
         const ret = wasm.memory;
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper109 = function() { return logError(function (arg0, arg1, arg2) {
+    imports.wbg.__wbindgen_closure_wrapper108 = function() { return logError(function (arg0, arg1, arg2) {
         const ret = makeMutClosure(arg0, arg1, 23, __wbg_adapter_22);
         return addHeapObject(ret);
     }, arguments) };
-    imports.wbg.__wbindgen_closure_wrapper111 = function() { return logError(function (arg0, arg1, arg2) {
+    imports.wbg.__wbindgen_closure_wrapper110 = function() { return logError(function (arg0, arg1, arg2) {
         const ret = makeMutClosure(arg0, arg1, 23, __wbg_adapter_25);
         return addHeapObject(ret);
     }, arguments) };

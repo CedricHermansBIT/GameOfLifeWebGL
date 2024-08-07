@@ -20,7 +20,6 @@ struct Simulation {
     current_texture: Rc<RefCell<WebGlTexture>>,
     next_texture: Rc<RefCell<WebGlTexture>>,
     mouse_position: Rc<RefCell<(f64, f64)>>,
-    kernel: [i32; 9],
     scale: i32,
     states: i32,
 }
@@ -64,12 +63,6 @@ impl Simulation {
 
         initialize_state(&context, canvas.width() as i32, canvas.height() as i32, &texture1)?;
 
-        let kernel: [i32; 9] = [
-            1, 1, 1,
-            1, 0, 1,
-            1, 1, 1,
-        ];
-
         Ok(Self {
             context,
             program,
@@ -79,7 +72,6 @@ impl Simulation {
             current_texture: Rc::new(RefCell::new(texture1)),
             next_texture: Rc::new(RefCell::new(texture2)),
             mouse_position: Rc::new(RefCell::new((0.0, 0.0))),
-            kernel,
             scale,
             states,
         })
@@ -116,9 +108,6 @@ impl Simulation {
         let (mouse_x, mouse_y) = *self.mouse_position.borrow();
         let u_mouse_location = self.context.get_uniform_location(&self.program, "u_mouse");
         self.context.uniform2f(u_mouse_location.as_ref(), (mouse_x / scale as f64) as f32, (self.canvas.height() as f64 - (mouse_y/scale as f64)) as f32);
-
-        let u_kernel_location = self.context.get_uniform_location(&self.program, "u_kernel");
-        self.context.uniform1iv_with_i32_array(u_kernel_location.as_ref(), &self.kernel);
 
         let u_states_location = self.context.get_uniform_location(&self.program, "u_states");
         self.context.uniform1f(u_states_location.as_ref(), self.states as f32);

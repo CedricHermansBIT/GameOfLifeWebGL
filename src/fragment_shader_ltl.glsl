@@ -5,8 +5,6 @@ uniform vec2 u_mouse;
 uniform sampler2D u_current_state;
 uniform vec2 u_resolution;
 
-uniform int u_kernel[9];
-
 out vec4 outColor;
 
 const int R = 5;
