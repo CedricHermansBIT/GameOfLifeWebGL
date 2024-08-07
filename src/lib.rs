@@ -22,10 +22,11 @@ struct Simulation {
     mouse_position: Rc<RefCell<(f64, f64)>>,
     scale: i32,
     states: i32,
+    kernel_id: i32,
 }
 
 impl Simulation {
-    fn new(canvas: HtmlCanvasElement, fragment_shader_file: &str, scale: i32, states: i32) -> Result<Self, JsValue> {
+    fn new(canvas: HtmlCanvasElement, fragment_shader_file: &str, scale: i32, states: i32, kernel_id:i32) -> Result<Self, JsValue> {
         let context = canvas
             .get_context("webgl2")?
             .unwrap()
@@ -74,6 +75,7 @@ impl Simulation {
             mouse_position: Rc::new(RefCell::new((0.0, 0.0))),
             scale,
             states,
+            kernel_id,
         })
     }
 
@@ -112,6 +114,9 @@ impl Simulation {
         let u_states_location = self.context.get_uniform_location(&self.program, "u_states");
         self.context.uniform1f(u_states_location.as_ref(), self.states as f32);
 
+        let u_kernel_location = self.context.get_uniform_location(&self.program, "u_kernel_id");
+        self.context.uniform1i(u_kernel_location.as_ref(), self.kernel_id);
+
         self.context.draw_arrays(WebGl2RenderingContext::TRIANGLE_STRIP, 0, 4);
 
         // Render the current state to the canvas
@@ -145,7 +150,7 @@ fn start() -> Result<(), JsValue> {
     canvas.set_width((document.body().unwrap().client_width() / scale) as u32);
     canvas.set_height((document.body().unwrap().client_height() /scale)as u32);
 
-    let simulation = Simulation::new(canvas, include_str!("fragment_shader_gol.glsl"), 1, 0)?;
+    let simulation = Simulation::new(canvas, include_str!("fragment_shader_gol.glsl"), 1, 0, 0)?;
     simulation.setup_mouse_listener()?;
     let simulation = Rc::new(RefCell::new(simulation));
     SIMULATION.with(|sim| {
@@ -378,7 +383,7 @@ fn check_gl_error(context: &WebGl2RenderingContext, location: &str) {
 }
 
 #[wasm_bindgen]
-pub fn reset_simulation(shader_source: &str, scale: i32, states: i32) -> Result<(), JsValue> {
+pub fn reset_simulation(shader_source: &str, scale: i32, states: i32, kernel: i32) -> Result<(), JsValue> {
     let document = web_sys::window().unwrap().document().unwrap();
     let canvas = document.get_element_by_id("canvas").unwrap();
     // set canvas size based to scale
@@ -386,7 +391,7 @@ pub fn reset_simulation(shader_source: &str, scale: i32, states: i32) -> Result<
     canvas.set_width((document.body().unwrap().client_width() / scale) as u32);
     canvas.set_height((document.body().unwrap().client_height() /scale)as u32);
 
-    let new_simulation = Simulation::new(canvas, shader_source, scale, states)?;
+    let new_simulation = Simulation::new(canvas, shader_source, scale, states, kernel)?;
     new_simulation.setup_mouse_listener()?;
 
     SIMULATION.with(|simulation| {

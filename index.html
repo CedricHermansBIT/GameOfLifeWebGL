@@ -13,13 +13,15 @@
       </canvas>
       <div style="position: absolute; top: 0; left: 0; padding: 10px; color: white;">
           <input type="radio" id="gol" name="game" value="src/fragment_shader_gol.glsl" checked>
-          <label for="gol">Game of Life</label>
+          <label for="gol">Game of Life</label><br>
           <input type="radio" id="ltl" name="game" value="src/fragment_shader_ltl.glsl">
-          <label for="ltl">Larger than Life</label>
+          <label for="ltl">Larger than Life</label><br>
           <input type="radio" name="game" id="primordia" value="src/fragment_shader_primordia.glsl">
-          <label for="primordia">Primordia</label>
+          <label for="primordia">Primordia</label><br>
           <input type="radio" name="game" id="primordia_time" value="src/fragment_shader_primordia_time.glsl">
-          <label for="primordia_time">Primordia Time</label>
+          <label for="primordia_time">Primordia Time</label><br>
+          <input type="radio" name="game" id="lenia" value="src/fragment_shader_lenia.glsl">
+          <label for="lenia">Lenia</label>
       </div>
       <div style="position: absolute; top: 0; right: 0; padding: 10px; color: white;">
           <label for="scale">Scale:</label>
@@ -36,8 +38,16 @@
               <option value="10">10x</option>
           </select>
           <div style="display:none;">
-          <label for="states">States:</label>
-          <input type="number" name="states" id="states" value="12" min="2" max="255">
+            <label for="states">States:</label>
+            <input type="number" name="states" id="states" value="12" min="2" max="255">
+          </div>
+          <div style="display:none;">
+            <label for="kernel">Kernel:</label>
+            <select name="kernel" id="kernel">
+                <option value="1">Square</option>
+                <option value="2">Circle</option>
+                <option value="3">Smooth circle</option>
+            </select>
           </div>
       </div>
     </body>
@@ -54,7 +64,8 @@
           const scale = document.getElementById('scale').value;
           const states = document.getElementById('states').value;
           const shaderFile = document.querySelector('input[name="game"]:checked').value;
-          return {scale, states, shaderFile};
+          const kernel = document.getElementById('kernel').value;
+          return {scale, states, shaderFile, kernel};
       }
 
       init().then(() => {
@@ -62,35 +73,49 @@
 
         document.querySelectorAll('input[name="game"]').forEach((radio) => {
                 radio.addEventListener('change', async (event) => {
-                    const {scale, states, shaderFile} = getInputValues();
+                    let {scale, states, shaderFile, kernel} = getInputValues();
                     const shaderSource = await fetchShaderSource(shaderFile);
                     if (shaderFile === 'src/fragment_shader_primordia.glsl') {
-                        document.getElementById('states').parentNode.style.display = 'block';
+                      document.getElementById('states').parentNode.style.display = 'block';
                     } else {
-                        document.getElementById('states').parentNode.style.display = 'none';
+                      document.getElementById('states').parentNode.style.display = 'none';
                     }
+                    if (shaderFile === 'src/fragment_shader_lenia.glsl') {
+                        document.getElementById('kernel').parentNode.style.display = 'block';
+                        // set scaling to 5x
+                        document.getElementById('scale').value = '5';
+                        scale = 5;
+                    } else {
+                      document.getElementById('kernel').parentNode.style.display = 'none';
+                    }
+                    reset_simulation(shaderSource, parseInt(scale), parseInt(states), parseInt(kernel));
                     //console.log(shaderSource);
-                    reset_simulation(shaderSource, parseInt(scale), parseInt(states));
                 });
             });
 
         document.getElementById('scale').addEventListener('change', async (event) => {
-            const {scale, states, shaderFile} = getInputValues();
+            const {scale, states, shaderFile, kernel} = getInputValues();
             const shaderSource = await fetchShaderSource(shaderFile);
-            reset_simulation(shaderSource, parseInt(scale), parseInt(states));
+            reset_simulation(shaderSource, parseInt(scale), parseInt(states), parseInt(kernel));
         });
 
         document.getElementById('states').addEventListener('change', async (event) => {
-            const {scale, states, shaderFile} = getInputValues();
+            const {scale, states, shaderFile, kernel} = getInputValues();
             const shaderSource = await fetchShaderSource(shaderFile);
-            reset_simulation(shaderSource, parseInt(scale), parseInt(states));
+            reset_simulation(shaderSource, parseInt(scale), parseInt(states), parseInt(kernel));
+        });
+
+        document.getElementById('kernel').addEventListener('change', async (event) => {
+            const {scale, states, shaderFile, kernel} = getInputValues();
+            const shaderSource = await fetchShaderSource(shaderFile);
+            reset_simulation(shaderSource, parseInt(scale), parseInt(states), parseInt(kernel));
         });
 
         // on click, reset
         document.getElementById('canvas').addEventListener('click', async (event) => {
-            const {scale, states, shaderFile} = getInputValues();
+            const {scale, states, shaderFile, kernel} = getInputValues();
             const shaderSource = await fetchShaderSource(shaderFile);
-            reset_simulation(shaderSource, parseInt(scale), parseInt(states));
+            reset_simulation(shaderSource, parseInt(scale), parseInt(states), parseInt(kernel));
         });
 
       }).catch(err => console.error(err));

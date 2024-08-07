@@ -259,15 +259,17 @@ export function start() {
 * @param {string} shader_source
 * @param {number} scale
 * @param {number} states
+* @param {number} kernel
 */
-export function reset_simulation(shader_source, scale, states) {
+export function reset_simulation(shader_source, scale, states, kernel) {
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
         const ptr0 = passStringToWasm0(shader_source, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len0 = WASM_VECTOR_LEN;
         _assertNum(scale);
         _assertNum(states);
-        wasm.reset_simulation(retptr, ptr0, len0, scale, states);
+        _assertNum(kernel);
+        wasm.reset_simulation(retptr, ptr0, len0, scale, states, kernel);
         var r0 = getInt32Memory0()[retptr / 4 + 0];
         var r1 = getInt32Memory0()[retptr / 4 + 1];
         if (r1) {

@@ -7,15 +7,16 @@ export function start(): void;
 * @param {string} shader_source
 * @param {number} scale
 * @param {number} states
+* @param {number} kernel
 */
-export function reset_simulation(shader_source: string, scale: number, states: number): void;
+export function reset_simulation(shader_source: string, scale: number, states: number, kernel: number): void;
 
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 
 export interface InitOutput {
   readonly memory: WebAssembly.Memory;
   readonly start: () => void;
-  readonly reset_simulation: (a: number, b: number, c: number, d: number, e: number) => void;
+  readonly reset_simulation: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
   readonly __wbindgen_malloc: (a: number, b: number) => number;
   readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
   readonly __wbindgen_export_2: WebAssembly.Table;
