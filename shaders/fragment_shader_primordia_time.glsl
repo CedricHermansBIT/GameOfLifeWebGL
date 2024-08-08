@@ -5,7 +5,6 @@ uniform vec2 u_mouse;
 uniform sampler2D u_current_state;
 uniform vec2 u_resolution;
 
-uniform float u_states;
 
 out vec4 outColor;
 
@@ -17,8 +16,13 @@ const float b1 = 0.20;
 const float b2 = 0.25;
 const float s1 = 0.18;
 const float s2 = 0.33;
+const float T = 12.0;
 const int kernel_rows = 2*R+1;
 const int kernel_length = kernel_rows*kernel_rows;
+
+float growth(float U) {
+    return float(int(U >= b1 && U <= b2) - int(U <= s1 || U >= s2));
+}
 
 void main() {
     vec2 texCoord = gl_FragCoord.xy / u_resolution;
@@ -28,18 +32,20 @@ void main() {
     float U = 0.0;
     for (int i = 0; i < kernel_length; i++) {
             vec2 offset = vec2(float(i % kernel_rows - R), float(i / kernel_rows - R)) * texelSize;
-            vec4 neighbor = texture(u_current_state, texCoord + offset);
+            vec2 wrappedCoord = texCoord + offset;
+            wrappedCoord.x = (wrappedCoord.x < 0.0) ? wrappedCoord.x + 1.0 : ((wrappedCoord.x >= 1.0) ? wrappedCoord.x - 1.0 : wrappedCoord.x);
+            wrappedCoord.y = (wrappedCoord.y < 0.0) ? wrappedCoord.y + 1.0 : ((wrappedCoord.y >= 1.0) ? wrappedCoord.y - 1.0 : wrappedCoord.y);
+            vec4 neighbor = texture(u_current_state, wrappedCoord);
             U += neighbor.r * kernel[i];
     }
     // end of convolution 2D
 
-    vec4 current = texture(u_current_state, texCoord) * u_states;
+    vec4 A = texture(u_current_state, texCoord);
 
-
-    float new_state = current.r + float(int(U >= b1 && U <= b2) - int(U < s1 || U > s2));
+    float new_state = A.r + (1.0/T * growth(U));
 
     // clamp the new state to 0.0 or 1.0
-    new_state = clamp(new_state, 0.0, u_states)/u_states;
+    new_state = clamp(new_state, 0.0, 1.0);
 
-    outColor = vec4(new_state, new_state/2.0, float(U), 1.0);    
+    outColor = vec4(new_state, new_state/2.0, U, 1.0);
 }

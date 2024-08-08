@@ -23,7 +23,10 @@ void main() {
     int U = 0;
     for (int i = 0; i < kernel_length; i++) {
             vec2 offset = vec2(float(i % kernel_rows - R), float(i / kernel_rows - R)) * texelSize;
-            vec4 neighbor = texture(u_current_state, texCoord + offset);
+            vec2 wrappedCoord = texCoord + offset;
+            wrappedCoord.x = (wrappedCoord.x < 0.0) ? wrappedCoord.x + 1.0 : ((wrappedCoord.x >= 1.0) ? wrappedCoord.x - 1.0 : wrappedCoord.x);
+            wrappedCoord.y = (wrappedCoord.y < 0.0) ? wrappedCoord.y + 1.0 : ((wrappedCoord.y >= 1.0) ? wrappedCoord.y - 1.0 : wrappedCoord.y);
+            vec4 neighbor = texture(u_current_state, wrappedCoord);
             U += int(neighbor.r>0.0);
     }
     // end of convolution 2D

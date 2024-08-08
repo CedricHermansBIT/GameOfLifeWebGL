@@ -22,7 +22,10 @@ void main() {
 
     for (int i = 0; i < 9; i++) {
             vec2 offset = vec2(float(i % 3 - 1), float(i / 3 - 1)) * texelSize;
-            vec4 neighbor = texture(u_current_state, texCoord + offset);
+            vec2 wrappedCoord = texCoord + offset;
+            wrappedCoord.x = (wrappedCoord.x < 0.0) ? wrappedCoord.x + 1.0 : ((wrappedCoord.x >= 1.0) ? wrappedCoord.x - 1.0 : wrappedCoord.x);
+            wrappedCoord.y = (wrappedCoord.y < 0.0) ? wrappedCoord.y + 1.0 : ((wrappedCoord.y >= 1.0) ? wrappedCoord.y - 1.0 : wrappedCoord.y);
+            vec4 neighbor = texture(u_current_state, wrappedCoord);
             if (neighbor.r > 0.0) {
                 alive_neighbors += 1 * int(kernel[i]*8.0);
             }
