@@ -8,19 +8,19 @@
       <!-- canvas renders crisp images, no interpolating, anti-aliassing -->  
       <canvas
             id="canvas"
-          style="height: 100vh; width: 100vw; image-rendering: pixelated;"
+          style="height: 100vh; width: 100vw; image-rendering:pixelated"
         >
       </canvas>
       <div style="position: absolute; top: 0; left: 0; padding: 10px; color: white;">
-          <input type="radio" id="gol" name="game" value="src/fragment_shader_gol.glsl" checked>
+          <input type="radio" id="gol" name="game" value="shaders/fragment_shader_gol.glsl" checked>
           <label for="gol">Game of Life</label><br>
-          <input type="radio" id="ltl" name="game" value="src/fragment_shader_ltl.glsl">
+          <input type="radio" id="ltl" name="game" value="shaders/fragment_shader_ltl.glsl">
           <label for="ltl">Larger than Life</label><br>
-          <input type="radio" name="game" id="primordia" value="src/fragment_shader_primordia.glsl">
+          <input type="radio" name="game" id="primordia" value="shaders/fragment_shader_primordia.glsl">
           <label for="primordia">Primordia</label><br>
-          <input type="radio" name="game" id="primordia_time" value="src/fragment_shader_primordia_time.glsl">
+          <input type="radio" name="game" id="primordia_time" value="shaders/fragment_shader_primordia_time.glsl">
           <label for="primordia_time">Primordia Time</label><br>
-          <input type="radio" name="game" id="lenia" value="src/fragment_shader_lenia.glsl">
+          <input type="radio" name="game" id="lenia" value="shaders/fragment_shader_lenia.glsl">
           <label for="lenia">Lenia</label>
       </div>
       <div style="position: absolute; top: 0; right: 0; padding: 10px; color: white;">
@@ -44,9 +44,11 @@
           <div style="display:none;">
             <label for="kernel">Kernel:</label>
             <select name="kernel" id="kernel">
-                <option value="1">Square</option>
-                <option value="2">Circle</option>
-                <option value="3">Smooth circle</option>
+                <option value="0">Square</option>
+                <option value="1">Circle</option>
+                <option value="2">Smooth circle</option>
+                <option value="3">Orbium</option>
+                <!-- <option value="4">Geminium</option> -->
             </select>
           </div>
       </div>
@@ -57,8 +59,32 @@
 
       async function fetchShaderSource(shaderFile) {
             const response = await fetch(shaderFile);
+            
             return await response.text();
         }
+
+      async function createShaderSource(shaderFile) {
+          let shaderSource = await fetchShaderSource(shaderFile);
+          if (shaderFile === 'shaders/fragment_shader_lenia.glsl') {
+              let kernel = document.getElementById('kernel').value;
+              // add shaders/{kernel glsl file based on kernel value} to front of shaderSource
+              if (kernel === '0') {
+                  shaderSource = await fetchShaderSource('shaders/fragment_shader_kernel_square.glsl') + shaderSource;
+              } else if (kernel === '1') {
+                  shaderSource = await fetchShaderSource('shaders/fragment_shader_kernel_circle.glsl') + shaderSource;
+              } else if (kernel === '2') {
+                  shaderSource = await fetchShaderSource('shaders/fragment_shader_kernel_smooth_circle.glsl') + shaderSource;
+              } else if (kernel === '3') {
+                  shaderSource = await fetchShaderSource('shaders/fragment_shader_kernel_orbium.glsl') + shaderSource;
+              } else if (kernel === '4') {
+                  shaderSource = await fetchShaderSource('shaders/fragment_shader_kernel_geminium.glsl') + shaderSource;
+              }
+              // add shaders/fragment_shader_top.glsl to front of shaderSource
+              shaderSource = await fetchShaderSource('shaders/fragment_shader_top.glsl') + shaderSource;
+
+          }
+          return shaderSource;
+      }
 
       function getInputValues() {
           const scale = document.getElementById('scale').value;
@@ -74,13 +100,13 @@
         document.querySelectorAll('input[name="game"]').forEach((radio) => {
                 radio.addEventListener('change', async (event) => {
                     let {scale, states, shaderFile, kernel} = getInputValues();
-                    const shaderSource = await fetchShaderSource(shaderFile);
-                    if (shaderFile === 'src/fragment_shader_primordia.glsl') {
+                    let shaderSource = await createShaderSource(shaderFile);
+                    if (shaderFile === 'shaders/fragment_shader_primordia.glsl') {
                       document.getElementById('states').parentNode.style.display = 'block';
                     } else {
                       document.getElementById('states').parentNode.style.display = 'none';
                     }
-                    if (shaderFile === 'src/fragment_shader_lenia.glsl') {
+                    if (shaderFile === 'shaders/fragment_shader_lenia.glsl') {
                         document.getElementById('kernel').parentNode.style.display = 'block';
                         // set scaling to 5x
                         document.getElementById('scale').value = '5';
@@ -95,26 +121,26 @@
 
         document.getElementById('scale').addEventListener('change', async (event) => {
             const {scale, states, shaderFile, kernel} = getInputValues();
-            const shaderSource = await fetchShaderSource(shaderFile);
+            let shaderSource = await createShaderSource(shaderFile);
             reset_simulation(shaderSource, parseInt(scale), parseInt(states), parseInt(kernel));
         });
 
         document.getElementById('states').addEventListener('change', async (event) => {
             const {scale, states, shaderFile, kernel} = getInputValues();
-            const shaderSource = await fetchShaderSource(shaderFile);
+            const shaderSource = await createShaderSource(shaderFile);
             reset_simulation(shaderSource, parseInt(scale), parseInt(states), parseInt(kernel));
         });
 
         document.getElementById('kernel').addEventListener('change', async (event) => {
             const {scale, states, shaderFile, kernel} = getInputValues();
-            const shaderSource = await fetchShaderSource(shaderFile);
+            let shaderSource = await createShaderSource(shaderFile);
             reset_simulation(shaderSource, parseInt(scale), parseInt(states), parseInt(kernel));
         });
 
         // on click, reset
         document.getElementById('canvas').addEventListener('click', async (event) => {
             const {scale, states, shaderFile, kernel} = getInputValues();
-            const shaderSource = await fetchShaderSource(shaderFile);
+            const shaderSource = await createShaderSource(shaderFile);
             reset_simulation(shaderSource, parseInt(scale), parseInt(states), parseInt(kernel));
         });
 
